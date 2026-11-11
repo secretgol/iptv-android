@@ -1,0 +1,56 @@
+name: iOS Nova IPTV - Build IPA
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  workflow_dispatch:  # Manuel tetikleme butonu
+
+# Node.js 20 deprecation uyarılarını bastırmak ve Node 24 uyumluluğu için runner ortam değişkeni
+env:
+  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: false
+
+jobs:
+  build-ipa:
+    runs-on: macos-14
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4.2.2
+
+    - name: Select Xcode
+      run: sudo xcode-select -s /Applications/Xcode_15.4.app/Contents/Developer
+
+    - name: Build iOS App (Ad Hoc - No Signing)
+      run: |
+        cd ios
+        xcodebuild \
+          -project NovaIPTV.xcodeproj \
+          -scheme NovaIPTV \
+          -sdk iphoneos \
+          -configuration Release \
+          -derivedDataPath build \
+          CODE_SIGN_IDENTITY="" \
+          CODE_SIGNING_REQUIRED=NO \
+          CODE_SIGNING_ALLOWED=NO \
+          DEVELOPMENT_TEAM="" \
+          build
+
+    - name: Create IPA from .app
+      run: |
+        cd ios/build/Build/Products/Release-iphoneos
+
+        # IPA = Payload klasörü içine .app koyup zip'lemek
+        mkdir -p Payload
+        cp -R NovaIPTV.app Payload/
+
+        # .ipa dosyasını oluştur
+        zip -r NovaIPTV.ipa Payload/
+        echo "✅ IPA başarıyla oluşturuldu!"
+        ls -lh NovaIPTV.ipa
+
+    - name: Upload IPA Artifact
+      uses: actions/upload-artifact@v4.6.0
+      with:
+        name: NovaIPTV-iOS-IPA
+        path: ios/build/Build/Products/Release-iphoneos/NovaIPTV.ipa
+        retention-days: 30
